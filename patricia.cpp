@@ -4,6 +4,7 @@
  * Includes oftware developed by the University of Michigan,
  * Merit Network, Inc., and their contributors.
  */
+#include <algorithm> /* remove_if */
 #include <assert.h> /* assert */
 #include <ctype.h> /* isdigit */
 #include <errno.h> /* errno */
@@ -1017,25 +1018,38 @@ int Patricia::matchingPrefix(uint32_t addr) {
     return matchingPrefix(prefix);
 }
 
-int Patricia::matchingPrefix(const char *string) {
-    prefix_t *prefix = ascii2prefix(AF_INET, string);
+int Patricia::matchingPrefix(const char *string, int family) {
+    prefix_t *prefix = ascii2prefix(family, string);
     return matchingPrefix(prefix);
 }
 
-int Patricia::parsePrefix(char *_line, std::string *net) {
+int Patricia::parsePrefix(int family, char *_line, std::string *p) {
     std::string line(_line);
-    std::string::size_type first, last;
-    first = line.find_first_of("0123456789");
-    last = line.find_last_of("0123456789");
-    *net = line.substr(first,last-first+1);
-    if (net->find_first_not_of("0123456789./") != std::string::npos) {
-        std::cerr << "Badly formed block prefix: [" << *net << "]" << std::endl;
+    // remove whitespace
+    line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+    std::string::size_type slash = line.find_first_of("/");
+    int mask = 0;
+    std::istringstream(line.substr(slash+1, line.length())) >> mask;
+    std::string net = line.substr(0,slash);
+    struct in_addr dummy;
+    if (family == AF_INET6) {
+      struct in6_addr dummy;
+      if ((inet_pton(AF_INET6, net.c_str(), &dummy) != 1) or (mask < 0) or (mask > 128)) {
+        std::cerr << "Badly formed IPv6 block prefix: [" << line << "]" << std::endl;
         exit(-1);
+      }
+    } else {
+      struct in_addr dummy;
+      if ((inet_pton(AF_INET, net.c_str(), &dummy) != 1) or (mask < 0) or (mask > 32)) {
+        std::cerr << "Badly formed IPv4 block prefix: [" << line << "]" << std::endl;
+        exit(-1);
+      }
     }
+    *p = line;
     return 1;
 }
 
-int Patricia::parseBGPLine(char *_line, std::string *net, uint32_t *asn) {
+int Patricia::parseBGPLine(char *_line, std::string *net, uint32_t *asn, int *family) {
     std::string line(_line);
     std::string::size_type first_space, last_space, first_non_white;
     first_non_white = line.find_first_not_of(' ');
@@ -1046,6 +1060,19 @@ int Patricia::parseBGPLine(char *_line, std::string *net, uint32_t *asn) {
     } else {
         *net = line.substr(first_non_white,first_space-1);
     }
+
+    /* infer the address family (v4/v6) of the entry */
+    std::string pre;
+    std::string::size_type slash;
+    slash = net->find('/');
+    pre = net->substr(0,slash);
+    struct in_addr dummy;
+    if (inet_aton(pre.c_str(), &dummy) == 1)
+        *family = AF_INET;
+    else
+        *family = AF_INET6;
+
+    /* grab origin ASN */
     std::string asn_str = line.substr(last_space);
     asn_str = asn_str.substr(0,asn_str.length()-1);
     std::stringstream ss;
@@ -1072,18 +1099,21 @@ void Patricia::populate(int family, const char *filename, bool block) {
     char line[MAXLINE];
     std::string network;
     uint32_t asn;
+    int bgpfamily;
     while (!gzeof(f)) {
         if (gzgets(f, line, MAXLINE) == NULL) break;
         if (block) {
-            if (parsePrefix(line, &network)) {
+            if (parsePrefix(family, line, &network)) {
                 //std::cout << "Block Prefix: " << network << std::endl;
                 add(family, network.c_str(), 0); 
             }
         } else {
-            if (parseBGPLine(line, &network, &asn)) {
-                //std::cout << "Prefix: " << network << " ASN: " << asn << std::endl;
+            if (parseBGPLine(line, &network, &asn, &bgpfamily)) {
+                // IP address family in bgptable different than current mode (v4/v6)
+                if (bgpfamily != family)
+                  continue;
                 // lookup first, ensure prefix isn't contained in a blacklistd prefix
-                if ( matchingPrefix(network.c_str()) != 0 )
+                if ( matchingPrefix(network.c_str(), family) != 0 )
                   add(family, network.c_str(), asn); 
             }
         }
@@ -1097,11 +1127,12 @@ void Patricia::populateStatus(const char *filename) {
     char line[MAXLINE];
     std::string network;
     uint32_t asn;
+    int bgpfamily;
     /* Only need to create one status object; Patricia::add memcpy's */
     //Status *status = new Status;
     while (!gzeof(f)) {
         if (gzgets(f, line, MAXLINE) == NULL) break;
-        if (parseBGPLine(line, &network, &asn)) {
+        if (parseBGPLine(line, &network, &asn, &bgpfamily)) {
             Status *status = new Status;
             add_ref(network.c_str(), status); 
             //std::cout << "Prefix: " << network << "ASN: " << asn << std::endl;

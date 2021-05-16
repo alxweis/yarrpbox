@@ -12,6 +12,11 @@ struct ypayload {
     uint8_t ttl;      /* sent TTL */
     uint16_t fudge;   /* make chksum constant */
     uint32_t diff;    /* elapsed time */
+
+    uint32_t pHash;  //payload hash
+    uint32_t spHash; //source port/icmp identifier hash
+    //ADD MSS data
+    //uint16_t mss;
 };
 
 class Traceroute {
@@ -44,7 +49,7 @@ class Traceroute {
     protected:
     int sndsock; /* raw socket descriptor */
     int payloadlen;
-    int packlen;
+    unsigned short packlen; 
     pthread_t recv_thread;
     pthread_mutex_t recv_lock;
     uint16_t dstport;
@@ -84,6 +89,7 @@ class Traceroute6 : public Traceroute {
     void make_transport(int);
     void make_frag_eh(uint8_t);
     void make_hbh_eh(uint8_t);
+    uint8_t make_srh_eh(uint8_t nxt, const char *segment, std::vector<std::string> &ipv6Adds);
     struct ip6_hdr *outip;
     uint8_t *frame;
     int pcount;

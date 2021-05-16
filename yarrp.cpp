@@ -1,5 +1,6 @@
 /****************************************************************************
  * Copyright (c) 2016-2019 Robert Beverly <rbeverly@cmand.org>
+ * Copyright (c) 2021-2022 Fahad Hilal <fhilal@mpi-inf.mpg.de>
  * All rights reserved.
  *
  * Program:     $Id: yaarp.cpp $
@@ -9,6 +10,10 @@
  * Attribution: R. Beverly, "Yarrp'ing the Internet: Randomized High-Speed
  *              Active Topology Discovery", Proceedings of the ACM SIGCOMM
  *              Internet Measurement Conference, November, 2016
+ *
+ * Attribution: F. Hilal, O. Gasser "Yarrpbox: Detecting middleboxes at 
+ *              Internet Scale", Conference on emerging Networking 
+ *              EXperiments and Technologies, December, 2023
  ***************************************************************************/
 #include "yarrp.h"
 
@@ -90,33 +95,23 @@ loop(YarrpConfig * config, TYPE * iplist, Traceroute * trace,
         /* Only send probe if destination is in BGP table */
         if (config->bgpfile or config->blocklist) {
             if (config->ipv6) {
-				asn = (int *)tree->get(target6);
-				inet_ntop(AF_INET6, &target6, ptarg, INET6_ADDRSTRLEN);
-                if (asn == NULL) {
-                    debug(DEBUG, "BGP Skip: " << ptarg << " TTL: " << (int)ttl);
-                    stats->bgp_outside++;
-                    continue;
-                }
-                if (*asn == 0) {
-                    debug(HIGH, ">> Address in blocklist: " << ptarg << " TTL: " << (int)ttl);
-                    continue;
-                } else {
-                    debug(DEBUG, ">> Prefix: " << ptarg << " ASN: " << *asn);
-                }
+                asn = (int *)tree->get(target6);
+                inet_ntop(AF_INET6, &target6, ptarg, INET6_ADDRSTRLEN);
             } else {
                 asn = (int *)tree->get(target.s_addr);
                 inet_ntop(AF_INET, &target, ptarg, INET6_ADDRSTRLEN);
-                if (asn == NULL) {
-                    debug(DEBUG, ">> BGP Skip: " << ptarg << " TTL: " << (int)ttl);
-                    stats->bgp_outside++;
-                    continue;
-                }
-                if (*asn == 0) {
-                    debug(HIGH, ">> Address in blocklist: " << ptarg << " TTL: " << (int)ttl);
-                    continue;
-                } else {
-                    debug(DEBUG, ">> Prefix: " << ptarg << " ASN: " << *asn);
-                }
+            }
+            if (asn == NULL) {
+                debug(DEBUG, "BGP Skip: " << ptarg << " TTL: " << (int)ttl);
+                stats->bgp_outside++;
+                continue;
+            }
+            if (*asn == 0) {
+                debug(HIGH, ">> Address in blocklist: " << ptarg << " TTL: " << (int)ttl);
+                continue;
+            } else {
+                debug(DEBUG, ">> Prefix: " << ptarg << " ASN: " << *asn);
+            }
 #if 0
                 status = (Status *) tree->get(target.s_addr);
                 if (status) {
@@ -126,12 +121,11 @@ loop(YarrpConfig * config, TYPE * iplist, Traceroute * trace,
                     continue;
                 }
 #endif
-            }
         }
         /* Passed all checks, continue and send probe */
         if (not config->testing) {
             if (config->ipv6)
-                trace->probe(target6, ttl);
+                trace->probe(target6, ttl);                                             
             else
                 trace->probe(target.s_addr, ttl);
         } else if (verbosity > HIGH) {
@@ -203,12 +197,16 @@ sane(YarrpConfig * config) {
         fatal("Fill mode TTL must be larger than max_ttl");
     if (config->ipv6) {
         if (config->int_name == NULL)
-            fatal("IPv6 requires specifying an interface");
+           fatal("IPv6 requires specifying an interface");
     }
     if (config->entire and not config->bgpfile)
         fatal("Entire Internet mode requires BGP table");
     if (config->inlist and config->entire)
         fatal("Cannot run in entire Internet mode with input targets");
+    if (config->midbox_detection and not config->ipv6){
+        if(config->type == TR_ICMP or config->type == TR_UDP)
+           fatal("Cannot run middlebox detection mode in IPv4 with UDP and ICMP");
+    }    
     return true;
 }
 
@@ -266,32 +264,30 @@ main(int argc, char **argv) {
     }
     /* Initialize radix trie, if using */
     Patricia *tree = NULL;
-    if (config.bgpfile or config.blocklist) {
-        if (config.ipv6) {
-            tree = new Patricia(128);
-            if (config.blocklist) {
-                debug(LOW, ">> Populating IPv6 blocklist: " << config.blocklist);
-                tree->populateBlock(AF_INET6, config.blocklist);
-            }
-            if (config.bgpfile) {
-                debug(LOW, ">> Populating IPv6 trie from: " << config.bgpfile);
-                tree->populate6(config.bgpfile);
-            } else {
-                tree->add("::/0", 1);
-            }
+    if (config.ipv6) {
+        tree = new Patricia(128);
+        if (config.blocklist) {
+            debug(LOW, ">> Populating IPv6 blocklist: " << config.blocklist);
+            tree->populateBlock(AF_INET6, config.blocklist);
+        }
+        if (config.bgpfile) {
+            debug(LOW, ">> Populating IPv6 trie from: " << config.bgpfile);
+            tree->populate6(config.bgpfile);
         } else {
-            tree = new Patricia(32);
-            if (config.blocklist) {
-                debug(LOW, ">> Populating IPv4 blocklist: " << config.blocklist);
-                tree->populateBlock(AF_INET, config.blocklist);
-            }
-            if (config.bgpfile) {
+            tree->add(AF_INET6, "::/0", 1);
+        }
+    } else {
+        tree = new Patricia(32);
+        if (config.blocklist) {
+            debug(LOW, ">> Populating IPv4 blocklist: " << config.blocklist);
+            tree->populateBlock(AF_INET, config.blocklist);
+        }
+        if (config.bgpfile) {
                 debug(LOW, ">> Populating IPv4 trie from: " << config.bgpfile);
-                //tree->populateStatus(config.bgpfile);
-                tree->populate(config.bgpfile);
-            } else {
-                tree->add("0.0.0.0/0", 1);
-            }
+            //tree->populateStatus(config.bgpfile);
+            tree->populate(config.bgpfile);
+        } else {
+            tree->add("0.0.0.0/0", 1);
         }
     }
     /* Initialize traceroute engine, if not in test mode */
@@ -301,9 +297,8 @@ main(int argc, char **argv) {
         trace = new Traceroute6(&config, stats);
     else
         trace = new Traceroute4(&config, stats);
-
-    if (config.bgpfile)
-        trace->addTree(tree);
+  
+    trace->addTree(tree);
 
     /* Open output */
     if (config.receive) {
@@ -334,8 +329,9 @@ main(int argc, char **argv) {
     }
     /* Finished, cleanup */
     if (config.receive) {
-        if (config.output and not config.testing)
+        if (config.output and not config.testing){
             stats->dump(trace->config->out);
+        }    
         else
             stats->dump(stdout);
     }

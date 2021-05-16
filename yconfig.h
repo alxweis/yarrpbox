@@ -10,13 +10,27 @@ class YarrpConfig {
     dstport(80),
     ipv6(false), int_name(NULL), dstmac(NULL), srcmac(NULL), 
     coarse(false), fillmode(32), poisson(0),
-    probesrc(NULL), probe(true), receive(true), instance(0), v6_eh(255), out(NULL) {};
+    probesrc(NULL), probe(true), receive(true), instance(0), v6_eh(255), out(NULL), 
+    midbox_detection(false), wScale(0), wScaleProvided(false), flowLabel(0), fixSequenceNo(false) {}; 
 
   void parse_opts(int argc, char **argv); 
   void usage(char *prog);
   void set(std::string, std::string, bool);
-  void dump() { if (output) dump(out); }
+  void dump() { 
+    if (output) {
+      dump(out);
+    } 
+  }
   unsigned int rate;
+  bool midbox_detection; 
+  const char * segment; 
+  uint16_t mssData; 
+  bool wScaleProvided;
+  uint8_t wScale;
+  uint32_t flowLabel;
+  bool fixSequenceNo;
+  uint16_t ipv6PayloadLengthSet;
+  std::vector <std::string> ipv6Adds;
   bool random_scan;
   uint8_t ttl_neighborhood;
   bool testing; 
@@ -44,6 +58,7 @@ class YarrpConfig {
   uint8_t instance;
   uint8_t v6_eh;
   FILE *out;   /* output file stream */
+  FILE *outDump;
   params_t params;
 
   private:

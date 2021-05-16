@@ -105,7 +105,6 @@ public:
 				temp6_addr.s6_addr[i] = m_v6addr->at(i);
 				//cout << int(temp6_addr.s6_addr[i]);
 			}
-			//cout << endl;
 			char addr6string[INET6_ADDRSTRLEN];
 			return std::string(inet_ntop(AF_INET6, &temp6_addr, addr6string, INET6_ADDRSTRLEN));
 		}

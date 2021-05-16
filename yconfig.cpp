@@ -4,7 +4,11 @@
    Description: yarrp runtime configuration parsing
 ****************************************************************************/
 #include "yarrp.h"
+#include "options.h"
 int verbosity;
+bool mssSupplied = false;
+bool flowLabelSupplied = false;
+bool srhSegmentSupplied = false;
 
 static struct option long_options[] = {
     {"srcaddr", required_argument, NULL, 'a'},
@@ -12,6 +16,11 @@ static struct option long_options[] = {
     {"blocklist", required_argument, NULL, 'B'},
     {"coarse", required_argument, NULL, 'C'},
     {"count", required_argument, NULL, 'c'},
+    {"middlebox", no_argument, NULL, 'd'},
+    {"mss", required_argument, NULL, 'D'},
+    {"segment", required_argument, NULL, 'e'},
+    {"sequence", no_argument, NULL, 'N'},
+    {"flowlabel", required_argument, NULL, 'f'},
     {"fillmode", required_argument, NULL, 'F'},
     {"poisson", required_argument, NULL, 'Z'},
     {"srcmac", required_argument, NULL, 'M'},
@@ -32,9 +41,10 @@ static struct option long_options[] = {
     {"seed", required_argument, NULL, 'S'},
     {"type", required_argument, NULL, 't'},
     {"verbose", no_argument, NULL, 'v'},
+    {"wscale", required_argument, NULL, 'w'},
     {"testing", no_argument, NULL, 'T'},
     {"instance", required_argument, NULL, 'E'}, 
-    {"v6eh", no_argument, NULL, 'X'}, 
+    {"v6eh", required_argument, NULL, 'X'}, 
     {"version", no_argument, NULL, 'V'}, 
     {NULL, 0, NULL, 0},
 };
@@ -63,7 +73,8 @@ YarrpConfig::parse_opts(int argc, char **argv) {
 #endif
     params["RTT_Granularity"] = val_t("us", true);
     params["Targets"] = val_t("entire", true);
-    while (-1 != (c = getopt_long(argc, argv, "a:b:B:c:CE:F:G:hi:I:l:m:M:n:o:p:PQr:RsS:t:vVTX:Z:", long_options, &opt_index))) {
+    
+    while (-1 != (c = getopt_long(argc, argv, "a:b:B:c:CE:e:dD:f:F:G:hi:I:l:m:M:n:No:p:PQr:RsS:t:vVw:TX:Z:", long_options, &opt_index))) {
         switch (c) {
         case 'b':
             bgpfile = optarg;
@@ -85,6 +96,50 @@ YarrpConfig::parse_opts(int argc, char **argv) {
             count = strtol(optarg, &endptr, 10);
             params["Count"] = val_t(to_string(count), true);
             break;
+        case 'd':
+            midbox_detection = true;
+            break;     
+        case 'D':
+            uint64_t temp;
+            temp = strtol(optarg, &endptr, 10);
+            if(temp <= 0xFFFF) {
+                mssSupplied = true;
+                mssData = temp;
+            } else {
+                cerr << "MSS must be less than 0xFFFF" << endl;
+                usage(argv[0]);
+            }
+            break;
+        case 'e':
+            srhSegmentSupplied = true;
+            segment = optarg;  
+            ipv6Adds.push_back(segment);
+            break;
+        case 'N':
+            fixSequenceNo = true;
+            break;        
+        case 'w': 
+            uint8_t tmp;
+            tmp = strtol(optarg, &endptr, 10);
+            if(tmp > 0 && tmp < 15) {
+                wScaleProvided = true;
+                wScale = tmp;
+            } else {
+                cerr << "Window Scale factor must be non 0 and less than 15" << endl;
+                usage(argv[0]);
+            }
+            break;
+        case 'f':
+            uint32_t fL;
+            fL =  strtol(optarg, &endptr, 10);
+            if (fL <= 0x000FFFFF){
+               flowLabel = fL;
+               flowLabelSupplied = true;
+            } else {
+                cerr << "Flow label must be smaller than 0x000FFFFF" << endl;
+                usage(argv[0]);
+            }
+            break;      
         case 'F':
             fillmode = strtol(optarg, &endptr, 10);
             break;
@@ -213,6 +268,48 @@ YarrpConfig::parse_opts(int argc, char **argv) {
         if ( (type == TR_UDP) || (type == TR_UDP6) )
             dstport = 53;
     }
+
+    if(midbox_detection) {
+        random_scan = true;
+        if(!mssSupplied) {
+            if(ipv6)
+               mssData = 1220; // MSS corresponding to min IPv6 MTU
+            else 
+               mssData = 536; // MSS corresponding to min IPv4 MTU 
+        }
+        probe = true;
+        receive = true;
+        if (testing)
+           receive = false;
+    }
+    if(!midbox_detection) {
+        if(mssSupplied) {
+           fatal("Can set MSS data only in middlebox detection mode");
+        } if(wScaleProvided) {
+           fatal("Can set Window Scale only in middlebox detection mode");  
+        } if(flowLabelSupplied) {
+           fatal("Can set Flow Label only in middlebox detection mode"); 
+        } if (fixSequenceNo){
+            fatal("Can set Sequence Number only in middlebox detection mode");    
+        }
+    }
+    if(midbox_detection) {
+        if(mssSupplied and (type == TR_UDP or type == TR_ICMP or type == TR_UDP6 or type == TR_ICMP6)){
+           fatal("Can set MSS data only for TCP probes");
+        } if(wScaleProvided and (type == TR_UDP or type == TR_ICMP or type == TR_UDP6 or type == TR_ICMP6 or type == TR_TCP6_SYN or type == TR_TCP6_ACK)){
+           fatal("Can set WScale only for TCP probes"); 
+        } if (flowLabelSupplied and !ipv6) {
+           fatal("Can set Flow Label only for IPv6 probes");
+        } if (fixSequenceNo and ipv6){
+           fatal("Can set Sequence Number only for IPv4 probes");      
+        }
+    }
+    if (v6_eh != 43) {
+        if (srhSegmentSupplied){
+           fatal("Can set segment list only for segment routing header (Protocol Number 43)");
+        } 
+    }
+
     debug(LOW, ">> yarrp v" << VERSION);
 
     params["Seed"] = val_t(to_string(seed), true);
@@ -228,7 +325,24 @@ YarrpConfig::parse_opts(int argc, char **argv) {
     params["Max_TTL"] = val_t(to_string(maxttl), true);
     params["TTL_Nbrhd"] = val_t(to_string(ttl_neighborhood), true);
     params["Dst_Port"] = val_t(to_string(dstport), true);
-    params["Output_Fields"] = val_t("target sec usec type code ttl hop rtt ipid psize rsize rttl rtos mpls count", true);
+    if(!midbox_detection) {
+       params["Output_Fields"] = val_t("target sec usec type code ttl hop rtt ipid psize rsize rttl rtos mpls count", true);
+    } else if (midbox_detection && type == TR_UDP6) {
+        params["Output_Fields"] = val_t("target ttl hop sec usec rtt type code psize rsize rttl tClassModif fLabelModif pLenModif srcPtModif dstPtModif cksmModif lenModif srhPresent flowLabelSet flowLabelObserved trafficClassSet trafficClassObserved IpPLengthSet IpPLengthObserved DportSet DportObserved UDPLenSet UDPLenObserved UDPCksmSet UDPCksmObserved quoteDump", true);
+        params["Middlebox_Detection"] = val_t("1", true);
+        params["IPv6"] = val_t("1", true);
+    } else if (midbox_detection && type == TR_ICMP6) {
+        params["Output_Fields"] = val_t("target ttl hop sec usec rtt type code psize rsize rttl tClassModif fLabelModif pLenModif typeModif codeModif idModif seqModif flowLabelSet srhPresent flowLabelObserved trafficClassSet trafficClassObserved IpPLengthSet IpPLengthObserved ICMPTypeSet ICMPTypeObserved ICMPCodeSet ICMPCodeObserved ICMPSeqSet ICMPSeqObserved quoteDump", true);
+        params["Middlebox_Detection"] = val_t("1", true);
+        params["IPv6"] = val_t("1", true);
+    } else if(midbox_detection && (type == TR_TCP6_SYN || type == TR_TCP6_ACK)) {
+        params["Output_Fields"] = val_t("target ttl hop sec usec rtt type code psize rsize rttl mssDataExt mssDataSet tClassModif fLabelModif pLenModif srcPtModif dstPortModif seqNoModif AckModif dOffsetModif wndwModif ChksmModif UrgModif flagsModif rsvdModif srhPresent mssPresent sackpPersent mpCapablePresent tmspPresent goodMssData goodMpCableData goodTmspTsval nopNotPresent wSNotAdded wSNotRemoved partialQuote flowLabelSet flowLabelObserved trafficClassSet trafficClassObserved IpPLengthSet IpPLengthObserved dportSet dportObserved seqSet seqObserved ackSet ackObserved doffSet doffObserved rsrvd2Set rsrvdObserved rcvWindowSet rcvWindowObserved urgPtrSet urgPtrObserved tcpCksmSet tcpCksmObserved mpcKeySet mpcKeyObserved optionOrderModified firstOpt secondOpt thirdOpt fourthOpt quoteDump", true);
+        params["Middlebox_Detection"] = val_t("1", true);
+        params["IPv6"] = val_t("1", true);
+    } else if (midbox_detection){
+    params["Output_Fields"] = val_t("target ttl hop tv.tv_sec, (long) tv.tv_usec rtt ipid type code probesize replysize replyttl dscp sequenceNumber mssDataExt mssDataSet wScaleSet wScaleObserved extractedIpHash extractedTcpHash extractedCompleteHash ipMatch tcpMatch completeMatch badSeqNo TosModif pSizeModif dpModif tcpOffsetModif tcpFlagsModif tcpX2Modif mssPresent sackpPresent mpCapablePresent tmspPresent goodMssData goodMpCapableData nopNotAdded wSNotAdded wSNotRemoved partialQuote tosSet totalLengthSet totalLengthObserved dportSet dportObserved seqSet ackSet ackObserved doffSet doffObserved rsrvdSet rsrvdObserved qUrgPtrObserved qRcvWindowObserved tmspTsvalObserved mpcKeySet mpcKeyObserved optionOrderModified firstOpt secondOpt thirdOpt fourthOpt quoteDump", true);
+    params["Middlebox_Detection"] = val_t("1", true);
+    }
 }
 
 
@@ -242,7 +356,7 @@ YarrpConfig::dump(FILE *fd) {
         string key = i->first;
         val_t val = i->second;
         if (val.second)
-            fprintf(fd, "# %s: %s\n", key.c_str(), val.first.c_str());
+            fprintf(fd, "# %s: %s\n", key.c_str(), val.first.c_str());   
     }
     fflush(fd);
 }
@@ -285,6 +399,13 @@ YarrpConfig::usage(char *prog) {
     << "  -G, --dstmac            MAC of gateway router (default: auto)" << endl
     << "  -M, --srcmac            MAC of probing host (default: auto)" << endl
     << "  -X, --v6eh              Ext Header number to add (default: none)" << endl
+
+    << "Middlebox detection options:" << endl
+    << "  -d  --middlebox         Run in middlebox detection mode (default:false)" << endl
+    << "  -D  --mss               MSS data for TCP probes (default IPv6: 1220, default IPv4: 536)" << endl   
+    << "  -f  --flowlabel         Flow Label for IPv6 probes (default: 0)" << endl
+    << "  -N  --sequence          Set sequence number to 1 (default: elapsed time)" << endl
+    << "  -w  --wscale            Add window scale option and set to provided value " << endl
 
 /* Undocumented options */
 //    << "  -C, --coarse            Coarse ms timestamps (default: us)" << endl

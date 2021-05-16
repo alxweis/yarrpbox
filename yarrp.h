@@ -110,6 +110,44 @@ extern int verbosity;
 #define s6_addr32	__u6_addr.__u6_addr32
 #endif
 
+#define TCPOPT_NOP		1	/* Padding */
+#define TCPOPT_EOL		0	/* End of options */
+#define TCPOPT_MSS		2	/* Segment size negotiating */
+#define TCPOPT_WINDOW		3	/* Window scaling */
+#define TCPOPT_SACK_PERM        4       /* SACK Permitted */
+#define TCPOPT_SACK             5       /* SACK Block */
+#define TCPOPT_TIMESTAMP	8	/* Better RTT estimations/PAWS */
+#define TCPOPT_MD5SIG		19	/* MD5 Signature (RFC2385) */
+#define TCPOPT_MPTCP		30
+#define TCPOPT_FASTOPEN		34	/* Fast open (RFC7413) */
+#define TCPOPT_EXP		254	/* Experimental */
+/* Magic number to be after the option value for sharing TCP
+ * experimental options. See draft-ietf-tcpm-experimental-options-00.txt
+ */
+#define TCPOPT_FASTOPEN_MAGIC	0xF989
+
+/*
+ *     TCP option lengths
+ */
+
+#define TCPOLEN_MSS            4
+#define TCPOLEN_WINDOW         3
+#define TCPOLEN_SACK_PERM      2
+#define TCPOLEN_TIMESTAMP      10
+#define TCPOLEN_MD5SIG         18
+#define TCPOLEN_FASTOPEN_BASE  2
+#define TCPOLEN_EXP_FASTOPEN_BASE  4
+
+// Fixed values
+#define MPCAPABLE_SENDER_KEY_SET   0xFFFFFFFFFFFFFFFF
+#define TCP6_SEQUENCE_NUMBER_SET   1
+#define TCP6_RCV_WINDOW_SET        65535
+#define TCP_RESERVED_SET           0
+#define TCP6_URGENT_PTR_SET         0   
+#define TCP6_TMSP_TSVAL_SET        0
+#define ICMP6_SEQUENCE_NUMBER_SET  1
+#define ICMP6_CODE_SET             0 
+
 unsigned short in_cksum(unsigned short *addr, int len);
 int infer_my_ip(struct sockaddr_in *mei);
 int infer_my_ip6(struct sockaddr_in6 *mei6);

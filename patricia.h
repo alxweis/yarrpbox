@@ -7,7 +7,7 @@
 typedef void (*void_fn_t)();
 /* { from defs.h */
 #define prefix_touchar(prefix) ((u_char *)&(prefix)->add.sin)
-#define MAXLINE 1024
+#define MAXLINE 4096
 #define BIT_TEST(f, b)  ((f) & (b))
 /* } */
 
@@ -192,11 +192,11 @@ class Patricia {
     };
     void populateStatus(const char *filename);
     int matchingPrefix(uint32_t addr);
-    int matchingPrefix(const char *string);
+    int matchingPrefix(const char *string, int family);
 
     private:
-    int parseBGPLine(char *, std::string *, uint32_t *);
-    int parsePrefix(char *, std::string *);
+    int parseBGPLine(char *, std::string *, uint32_t *, int *);
+    int parsePrefix(int family, char *, std::string *);
     void *get(prefix_t *prefix, bool exact);
     int matchingPrefix(prefix_t *prefix);
     patricia_tree_t *tree;

@@ -5,6 +5,7 @@
 ****************************************************************************/
 #include "yarrp.h"
 #include <signal.h>
+#include <options.h>
 
 static volatile bool run = true;
 void intHandler(int dummy);
@@ -41,9 +42,11 @@ int bpfinit(char *dev, size_t *bpflen) {
 
 void *listener6(void *args) {
     fd_set rfds;
-    Traceroute6 *trace = reinterpret_cast < Traceroute6 * >(args);
+    Traceroute6 *trace = reinterpret_cast < Traceroute6 * >(args); 
     struct timeval timeout;
     unsigned char *buf = (unsigned char *) calloc(1,PKTSIZE);
+    /*unsigned char *buf = NULL;
+    buf = (unsigned char *) calloc(1,PKTSIZE);*/
     uint32_t nullreads = 0;
     int n, len;
     TTLHisto *ttlhisto = NULL;
@@ -70,6 +73,8 @@ void *listener6(void *args) {
 
     signal(SIGINT, intHandler);
     while (true and run) {
+        buf = (unsigned char *) calloc(1,PKTSIZE);
+        
         if (nullreads >= MAXNULLREADS)
             break;
 #ifdef _LINUX
@@ -106,10 +111,52 @@ reloop:
             if ( (ippayload->icmp6_type == ICMP6_TIME_EXCEEDED) or
                  (ippayload->icmp6_type == ICMP6_DST_UNREACH) or
                  (ippayload->icmp6_type == ICMP6_ECHO_REPLY) ) {
-                ICMP *icmp = new ICMP6(ip, ippayload, elapsed, trace->config->coarse);
-                if (icmp->is_yarrp) {
+                bool partialQuote = false;
+                uint16_t quoteSize = ntohs(ip->ip6_plen) - (sizeof(struct icmp6_hdr)); 
+                if(trace->config->midbox_detection && (trace->config->type == TR_TCP6_SYN || trace->config->type == TR_TCP6_ACK)) {
+                    uint16_t replySize = ntohs(ip->ip6_plen); // external ipv6 header excluded
+                    // Full quote with external IP header excluded
+                    uint16_t fullQuoteSize = (sizeof(struct icmp6_hdr) + sizeof(struct ip6_hdr) + sizeof(struct tcphdr_options) + sizeof(struct ypayload));
+                    unsigned char *ptr = (unsigned char *) ippayload;
+                    struct tcphdr_options *tcp_op = (struct tcphdr_options *) (ptr + sizeof(struct icmp6_hdr) + sizeof(struct ip6_hdr));
+                    if(replySize < fullQuoteSize && (tcp_op->tcp.th_off == 12)) {
+                        trace->stats->v6PartialQuote+=1;
+                        partialQuote = true;
+                        //continue;
+                    }
+                    // For a partial quote, there will be no payload, so don't worry about it
+                    // If payload present then it is not a partial quote and then calculated tcpquotesize would be larger than indicated and response would not be classified as partial quote
+                    uint16_t tcpQuotesize = replySize - (sizeof(struct icmp6_hdr) + sizeof(struct ip6_hdr));
+                    uint16_t indicatedTcpQuoteSize = (tcp_op->tcp.th_off << 2);
+                    if(replySize < fullQuoteSize && (tcp_op->tcp.th_off != 12 && indicatedTcpQuoteSize > tcpQuotesize)) {
+                        trace->stats->v6PartialQuote+=1;
+                        debug(DEVELOP, "        Partial Quote case 3");
+                        partialQuote = true;
+                        //continue;
+                    }
+                }  
+                ICMP *icmp = new ICMP6(ip, ippayload, elapsed, trace->config->coarse, partialQuote, trace);
+                
+                if(icmp->echoReply){
+                   trace->stats->v6EchoReply+=1;
+                }
+                if (icmp->getSport() == 0 && !icmp->echoReply && trace->config->midbox_detection){ 
+                    trace->stats->badResp+=1;    
+                    delete icmp;
+                    continue;
+                }
+                
+                if (icmp->is_yarrp) { 
+                    debug(DEVELOP, "        Listener.cpp: is_yarrp: " << icmp->is_yarrp << endl);
+                    
                     if (verbosity > LOW)
                         icmp->print();
+                    
+                    if (icmp->getSport() == 0) {
+                         trace->stats->badResp+=1; 
+                         //trace->stats->baddst+=1;
+                    } 
+                      
                     /* Fill mode logic. */
                     if (trace->config->fillmode) {
                         if ( (icmp->getTTL() >= trace->config->maxttl) and
@@ -118,7 +165,7 @@ reloop:
                          trace->probe(icmp->quoteDst6(), icmp->getTTL() + 1); 
                         }
                     }
-                    icmp->write(&(trace->config->out), trace->stats->count);
+                    icmp->write(&(trace->config->out), trace->stats->count, NULL, quoteSize, NULL);
                     /* TTL tree histogram */
                     if (trace->ttlhisto.size() > icmp->quoteTTL()) {
                      ttlhisto = trace->ttlhisto[icmp->quoteTTL()];
@@ -134,6 +181,8 @@ reloop:
 	p += BPF_WORDALIGN(bh->bh_hdrlen + bh->bh_caplen);
 	if (p < bpfbuf + len) goto reloop;
 #endif
+
+    free(buf);
     }
     return NULL;
 }
