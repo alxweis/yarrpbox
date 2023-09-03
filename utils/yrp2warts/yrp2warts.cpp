@@ -840,7 +840,7 @@ ordered_json create_Json(struct jsonData *jData, vector<string> &jModifs) {
 				hop["ICMP_Type_Set"] = jData->qICMPTypeSet;
 			    hop["ICMP_Type_Present"] = jData->qICMPTypeObserved;
 			}
-            if(jData->qICMPCodeSet != jData->qICMPCodeObserved;) {
+            if(jData->qICMPCodeSet != jData->qICMPCodeObserved) {
 				hop["ICMP_Code_Set"] = jData->qICMPCodeSet;
 			    hop["ICMP_Code_Present"] = jData->qICMPCodeObserved;
 			}
