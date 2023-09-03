@@ -66,7 +66,7 @@ performs an offline reconstruction of the Yarrpbox probe responses stored in the
 The command:
 
 ```
-yrp2warts.cpp -i test-detection.yrp -o test-detection.txt
+yrp2warts -i test-detection.yrp -o test-detection.txt
 ```
 performs an offline reconstruction of the Yarrpbox probe responses stored in `test-detection.yrp` file. It produces text traces containing information relevant for middlebox detection and writes the result to the `test-detection.txt` file.
 
