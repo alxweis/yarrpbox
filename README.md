@@ -23,6 +23,14 @@ ACM SIGCOMM conference on Internet measurement. 153–158
 make
 ```
 
+The following packages are required for successfully building the tool: `autoconf`, `zlib1g-dev`, `libscamperfile0`, `libscamperfile0-dev`. On debian systems they can be installed by running:
+```
+sudo apt-get install autoconf
+sudo apt-get install zlib1g-dev
+sudo apt-get install libscamperfile0
+sudo apt-get install libscamperfile0-dev
+```
+
 ## Options
 
 In addition to the features and options that Yarrp provides (see: www.cmand.org/yarrp/yarrp.1.pdf), Yarrpbox incorporates new options:
@@ -57,7 +65,7 @@ runs Yarrpbox in middlebox detection mode. It sends TCP SYN probes in a randomly
 The command:
 
 ```
-yrp2warts.cpp -i test-detection.yrp -o test-detection.json -j
+yrp2warts -i test-detection.yrp -o test-detection.json -j
 ```
 performs an offline reconstruction of the Yarrpbox probe responses stored in the `test-detection.yrp` file. It produces JSON traces containing information relevant for middlebox detection and writes the result to the `test-detection.json` file.
 
