@@ -30,8 +30,10 @@ sudo apt-get install zlib1g-dev
 sudo apt-get install libscamperfile0
 sudo apt-get install libscamperfile0-dev
 ```
-The `yrp2warts` utility that performs an offline reconstruction on the probing results collected in the `yrp' format file and writes the result to a `txt` or `JSON` file format, is also included. In order to build the utility, please follow these steps:
-```cd utils
+The `yrp2warts` utility that performs an offline reconstruction on the probing results collected in the `yrp` format file and writes the result to a `txt` or `JSON` file format, is also included. In order to build the utility, please follow these steps:
+
+```
+cd utils
 cd yrp2warts
 make
 ```
