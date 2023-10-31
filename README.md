@@ -30,6 +30,11 @@ sudo apt-get install zlib1g-dev
 sudo apt-get install libscamperfile0
 sudo apt-get install libscamperfile0-dev
 ```
+The `yrp2warts` utility that performs an offline reconstruction on the probing results collected in the `yrp' format file and writes the result to a `txt` or `JSON` file format, is also included. In order to build the utility, please follow these steps:
+```cd utils
+cd yrp2warts
+make
+```
 
 ## Options
 
@@ -58,7 +63,7 @@ The command:
 ```
 yarrp -i targets.txt -o test-detection.yrp -r 100 -d
 ```
-runs Yarrpbox in middlebox detection mode. It sends TCP SYN probes in a randomly-permuted order to the IPv4 targets specified in the `targets.txt` file at a rate of 100 probes per second. The results are written to the `test-detection.yrp` file.
+runs Yarrpbox in middlebox detection mode. It sends TCP SYN probes in a randomly-permuted order to the IPv4 targets specified in the `targets.txt` file at a rate of 100 probes per second. Each line in the `targets.txt` file contains an IP address to be probed. The results are written to the `test-detection.yrp` file. 
 
 ### Offline Reconstruction - JSON Output
 
