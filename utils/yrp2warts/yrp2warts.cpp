@@ -921,11 +921,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (detection && !ipv6 && !jsonOutput) {
-		fprintf(*out_f, "** IP Hash: ToS + Destination IP + IPID + IP Total Length\n");
+		fprintf(*out_f, "** IP Hash: IPID\n");
 		fprintf(*out_f, "** Stored: Timestamp TSval\n\n");
-		fprintf(*out_f, "** TCP Hash: Sequence Number + MSS Option + Sack_Permitted Option + MP_CAPABALE Option\n");
-		fprintf(*out_f, "** Stored: Timestamp TSecr\n\n");
-		fprintf(*out_f, "** Complete Hash: ToS + Destination IP + IPID + IP Total Length + Sequence Number + MSS Option + Sack_Permitted Option + MP_CAPABALE Option\n");
+		//fprintf(*out_f, "** TCP Hash: Sequence Number + MSS Option + Sack_Permitted Option + MP_CAPABALE Option\n");
+		//fprintf(*out_f, "** Stored: Timestamp TSecr\n\n");
+		fprintf(*out_f, "** Complete Hash: IPID\n");
 		fprintf(*out_f, "** Stored: Urgent Pointer + Receiver Window\n\n");
 		fprintf(*out_f, "** Option Order: MSS Sack_Permitted MP_CAPABLE Timestamp\n\n");
 	} 

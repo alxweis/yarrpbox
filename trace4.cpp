@@ -302,9 +302,9 @@ Traceroute4::probeTCP(struct sockaddr_in *target, int ttl) {
         // Compute Complete hash
         char dst[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &(outip->ip_dst), dst, INET_ADDRSTRLEN);
-        string dstIP(dst); 
-
-        string hash_input = to_string(outip->ip_tos) + dstIP + to_string(outip->ip_id) + to_string(htons(packlen)) + to_string(tcp_o->tcp.th_seq);
+        string dstIP(dst);
+        printf("Compute Hash")
+        string hash_input = to_string(outip->ip_id);
         uint32_t completeHash = 0;
         if(config-> wScaleProvided){
            unsigned char* wsBegin = ptr + (outip->ip_hl << 2) + sizeof(struct tcphdr_options);
@@ -318,13 +318,13 @@ Traceroute4::probeTCP(struct sockaddr_in *target, int ttl) {
         uint32_t check = uint32_t((ntohl( tcp_o->tcp.th_urp << 16) + ntohl((tcp_o->tcp.th_win ))));
     
         // Compute partial hash 1 (IP hash)
-        string partial_hash1_input = to_string(outip->ip_tos) + dstIP + to_string(outip->ip_id) + to_string(htons(packlen));
+        string partial_hash1_input = to_string(outip->ip_id);
         unsigned char *hash_begin = (unsigned char*) partial_hash1_input.c_str();
         uint32_t partial_hash1 = XXHash32::hash(hash_begin, partial_hash1_input.size(),0); 
         tcp_o->th_tmsp.TSval = htonl(partial_hash1);
         
         // Compute partial hash 2 (TCP Hash)
-        string partial_hash2_input = to_string (tcp_o->tcp.th_seq);
+        string partial_hash2_input = "";
         uint32_t partialHash2 = 0;
         if(config-> wScaleProvided) {
            unsigned char* wsBegin = ptr + (outip->ip_hl << 2) + sizeof(struct tcphdr_options);
