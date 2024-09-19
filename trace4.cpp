@@ -304,11 +304,10 @@ Traceroute4::probeTCP(struct sockaddr_in *target, int ttl) {
         inet_ntop(AF_INET, &(outip->ip_dst), dst, INET_ADDRSTRLEN);
         string dstIP(dst);
 
-        printf("Compute Hash...");
         tcp_o->tcp.th_urp = htons(outip->ip_id & 0x0000FFFF); // Lower 2 bytes in urgent pointer
         tcp_o->tcp.th_win = htons((outip->ip_id >> 16) & 0x0000FFFF); // Upper byte in receiver window
         
-        uint32_t check = (ntohl(tcp_o->tcp.th_urp) << 16) + ntohl(tcp_o->tcp.th_win);
+        uint32_t check = uint32_t((ntohl( tcp_o->tcp.th_urp << 16) + ntohl((tcp_o->tcp.th_win ))));
     
         // Compute partial hash 1 (IP hash)
         tcp_o->th_tmsp.TSval = htonl(outip->ip_id);

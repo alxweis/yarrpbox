@@ -537,29 +537,20 @@ ICMP4::ICMP4(struct ip *ip, struct icmp *icmp, uint32_t elapsed, bool _coarse, b
 
                 uint32_t ipHashComputed;
                 uint32_t tcpHashComputed;
-                string ipHashComputedInput;
-                string tcpHashComputedInput;
+                uint32_t completeHashComputed;
 
                 char targ[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(quote->ip_dst), targ, INET_ADDRSTRLEN);
-                string targIP(targ); 
+                string targIP(targ);
 
-                // Compute IP hash over fields of quote  
-                ipHashComputedInput = to_string((quote->ip_id));
-                unsigned char *ipHashComputedInputBegin = (unsigned char*) ipHashComputedInput.c_str();
-                ipHashComputed = XXHash32::hash(ipHashComputedInputBegin, ipHashComputedInput.size(), 0); 
+                // Compute IP hash over fields of quote
+                ipHashComputed = quote->ip_id;
 
-                // Compute TCP hash over fields of quote 
-                tcpHashComputedInput = "";
-                unsigned char *tcpHashComputedInputBegin = (unsigned char*) tcpHashComputedInput.c_str();
-                tcpHashComputed = XXHash32::hash(tcpHashComputedInputBegin, tcpHashComputedInput.size(), 0); 
+                // Compute TCP hash over fields of quote
+                tcpHashComputed = 0;
 
-                // Compute Complete hash over fields of quote    
-                uint32_t completeHashComputed;
-                string completeHashInput;
-                completeHashInput = to_string((quote->ip_id));
-                unsigned char *completeHashInputBegin = (unsigned char *) completeHashInput.c_str(); 
-                completeHashComputed = XXHash32::hash(completeHashInputBegin, completeHashInput.size(), 0);
+                // Compute Complete hash over fields of quote
+                completeHashComputed = quote->ip_id;
                 
                 ipHashExtr = ipHashExtracted;
                 ipHashComp = ipHashComputed;
