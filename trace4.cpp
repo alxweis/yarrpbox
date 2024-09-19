@@ -303,7 +303,8 @@ Traceroute4::probeTCP(struct sockaddr_in *target, int ttl) {
         char dst[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &(outip->ip_dst), dst, INET_ADDRSTRLEN);
         string dstIP(dst);
-        printf("Compute Hash")
+
+        printf("Compute Hash...");
         string hash_input = to_string(outip->ip_id);
         uint32_t completeHash = 0;
         if(config-> wScaleProvided){

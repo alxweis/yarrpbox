@@ -545,19 +545,19 @@ ICMP4::ICMP4(struct ip *ip, struct icmp *icmp, uint32_t elapsed, bool _coarse, b
                 string targIP(targ); 
 
                 // Compute IP hash over fields of quote  
-                ipHashComputedInput = to_string(q_tos) + targIP + to_string((quote->ip_id)) + to_string((quote->ip_len));
+                ipHashComputedInput = to_string((quote->ip_id));
                 unsigned char *ipHashComputedInputBegin = (unsigned char*) ipHashComputedInput.c_str();
                 ipHashComputed = XXHash32::hash(ipHashComputedInputBegin, ipHashComputedInput.size(), 0); 
 
                 // Compute TCP hash over fields of quote 
-                tcpHashComputedInput = to_string(tcp_op->tcp.th_seq) + opts;
+                tcpHashComputedInput = "";
                 unsigned char *tcpHashComputedInputBegin = (unsigned char*) tcpHashComputedInput.c_str();
                 tcpHashComputed = XXHash32::hash(tcpHashComputedInputBegin, tcpHashComputedInput.size(), 0); 
 
                 // Compute Complete hash over fields of quote    
                 uint32_t completeHashComputed;
                 string completeHashInput;
-                completeHashInput = to_string(q_tos) + targIP + to_string((quote->ip_id)) + to_string((quote->ip_len)) + to_string((tcp_op->tcp.th_seq)) + opts;
+                completeHashInput = to_string((quote->ip_id));
                 unsigned char *completeHashInputBegin = (unsigned char *) completeHashInput.c_str(); 
                 completeHashComputed = XXHash32::hash(completeHashInputBegin, completeHashInput.size(), 0);
                 
