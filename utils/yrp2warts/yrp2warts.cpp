@@ -1121,7 +1121,7 @@ int main(int argc, char* argv[]) {
 				        }  
 				    } else if (!thishop->tcpHashMatch) {
 						if(!jsonOutput)
-				            fprintf(*out_f, "%-2d %-15s %-5d  Timestamp::Tsecr modified\n",thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid));
+				            fprintf(*out_f, "%-2d %-15s %-5d  Timestamp::Tsecr modified\n",thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid);
 				        else {
 							jsonTcpModifs.push_back("TCP::Timestamp Tsecr"); 
 					        auto hop = create_Json(&jData, jsonTcpModifs);
@@ -1131,7 +1131,7 @@ int main(int argc, char* argv[]) {
 				    }
 			    } else if((thishop->ipHashMatch && thishop->tcpHashMatch) && !thishop->completeHashMatch) {
 					if(!jsonOutput)
-				        fprintf(*out_f, "%-2d %-15s %-5d  Receiver Window or Urgent Pointer::Modified\n",thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid));
+				        fprintf(*out_f, "%-2d %-15s %-5d  Receiver Window or Urgent Pointer::Modified\n",thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid);
 				    else {
 						jsonTcpModifs.push_back("TCP::Urgent Pointer/Receiver Window");
 					    auto hop = create_Json(&jData, jsonTcpModifs);
@@ -1175,7 +1175,7 @@ int main(int argc, char* argv[]) {
 				    }
 			    } else {
 					if(!jsonOutput)
-			           fprintf(*out_f, "%-2d %-15s %-5d \n",thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid));
+			           fprintf(*out_f, "%-2d %-15s %-5d \n",thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid);
 			        else if(jsonOutput) {
 						auto hop = create_Json(&jData, jsonTcpModifs);
 				        jHops.push_back(hop);
@@ -1264,7 +1264,7 @@ int main(int argc, char* argv[]) {
 					string msg = "%-2d %-39s ";
 			        msg = msg + modifs + "\n";
 			        char buff[500];
-			        snprintf(buff, 500, msg.c_str(), thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid));
+			        snprintf(buff, 500, msg.c_str(), thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid);
 			        fprintf(*out_f,"%s", buff);
 			    }
 			}
@@ -1346,7 +1346,7 @@ int main(int argc, char* argv[]) {
 				   string msg = "%-2d %-39s ";
 			       msg = msg + modifs + "\n";
 			       char buff[500];
-			       snprintf(buff, 500, msg.c_str(), thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid));
+			       snprintf(buff, 500, msg.c_str(), thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid);
 			       fprintf(*out_f,"%s", buff);
 			    }
 			}
@@ -1436,7 +1436,7 @@ int main(int argc, char* argv[]) {
 					pQuoteCount++;
 					partialQuoteSize = thishop->rsize - 8;
 				    if(!jsonOutput) {
-					   fprintf(*out_f, "%-2d %-39s %-5d  Partial Quote\n", thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid));
+					   fprintf(*out_f, "%-2d %-39s %-5d  Partial Quote\n", thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid);
 				    } else {
 					   auto hop = create_Json(&jData, jsonTcpModifs);
 				       jHops.push_back(hop);
@@ -1483,7 +1483,7 @@ int main(int argc, char* argv[]) {
 			    } else {
 				    msg = msg + optModifs + "\n";
 			        char buff[500];
-			        snprintf(buff, 500, msg.c_str(), thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid));
+			        snprintf(buff, 500, msg.c_str(), thishop->ttl, thishop->addr.tostr().c_str(), thishop->ipid);
 			        fprintf(*out_f,"%s", buff);
 				}
 			}
